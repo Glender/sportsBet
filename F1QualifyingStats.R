@@ -55,7 +55,7 @@ scrape_qualification <- function(url) {
     
     # Unlist the data and remove NA cols
     data <- data[[1]]
-    data <- data[,colSums(is.na(data))<nrow(data)]
+    data <- data[, colSums(is.na(data)) < nrow(data)]
   }
   
   cat("Scraped the website:", url, "\n")
@@ -77,14 +77,3 @@ quali_urls <- find_qualifying_urls(url)
 data <- scrape_qualifying_stats(quali_urls)
 
 View(data[3][[1]])
-
-
-
-
-
-
-
-
-
-
-
