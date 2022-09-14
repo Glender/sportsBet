@@ -1,6 +1,7 @@
 library(rvest)
 library(magrittr)
 library(stringr)
+library(tibble)
 
 
 # Scrape all urls that link to qualifying statistics.
@@ -76,4 +77,44 @@ url <- 'https://www.formula1.com/en/results.html/2022/races/1114/great-britain/q
 quali_urls <- find_qualifying_urls(url)
 data <- scrape_qualifying_stats(quali_urls)
 
-View(data[3][[1]])
+
+# Remove trailing white space in the drivers name.
+trim_driver_name <- function(string) {
+  return(stringr::str_squish(string))
+}
+
+
+# Get only the first and last name.
+# Requires trimmed names; no fancy aesthetics.
+get_first_last_name <- function(name){
+  return(stringr::word(name, 1, 2))
+}
+
+
+# Get the capital name (e.g. 'Max Verstappen VER' becomes 'VER' ) 
+get_capital_name <- function(driver_name){
+  return(base::sub(".* ", "", driver_name))
+}
+
+
+# Convert str like '1:09.23' to double 69.23. 
+str_to_seconds <- function(string){
+  
+  # Split the time in two parts, minutes and seconds.
+  l <- stringr::str_split(string, ":")
+  l_num <- lapply(l, as.numeric)
+  
+  # Create empty container to store the results.
+  time <- vector("double", length = length(l_num))
+  idx <- 1
+  for(iter in l_num){
+    
+    min <- iter[1] # Get minutes.
+    sec <- iter[2] # And seconds.
+    
+    # Convert to a total time score in seconds.
+    time[idx] <- (min*60) + sec 
+    idx <- idx + 1
+  }
+  return(time)
+}
