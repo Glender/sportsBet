@@ -41,6 +41,7 @@ find_circuit_in_url <- function(url) {
   return(circuit_name)
 }
 
+
 # Vectorised version.
 find_circuits_in_urls_vec <- function(urls) {
   return(unname(sapply(urls, find_circuit_in_url)))
@@ -57,6 +58,8 @@ scrape_qualification <- function(url) {
     # Unlist the data and remove NA cols
     data <- data[[1]]
     data <- data[, colSums(is.na(data)) < nrow(data)]
+    data$Circuit <- find_circuit_in_url(url)
+    
   }
   
   cat("Scraped the website:", url, "\n")
@@ -66,8 +69,10 @@ scrape_qualification <- function(url) {
 
 # Vectorised version to scrape multiple urls at once.
 scrape_qualifying_stats <- function(qualifying_urls) {
+  
   data <- lapply(qualifying_urls, scrape_qualification)
   names(data) <- find_circuits_in_urls_vec(qualifying_urls)
+  
   return(data)
 }
 
@@ -87,7 +92,7 @@ trim_driver_name <- function(string) {
 # Get only the first and last name.
 # Requires trimmed names; no fancy aesthetics.
 get_first_last_name <- function(name){
-  return(stringr::word(name, 1, 2))
+  return(stringr::word(trim_driver_name(name), 1, 2))
 }
 
 
@@ -118,3 +123,69 @@ str_to_seconds <- function(string){
   }
   return(time)
 }
+
+
+# Transform second vector to delta seconds.
+sec_to_delta <- function(seconds) {
+  
+  min_t <- min(na.omit(seconds))
+  t_delta <- sapply(seconds, function(time)  time - min_t)
+  
+  return(t_delta)
+}
+
+
+# Calculate a driver's improvement relative to its
+# previously lapped qualification time.
+# Inspired by:  https://www.statology.org/r-mapply/
+lap_improvement <- function(Q1, Q2){
+  
+  impr <- mapply(function(Q1, Q2) Q1 - Q2, Q1, Q2)
+  return(impr)
+}
+
+
+# Remove all empty elements from a list.
+rem_empty_elements <- function(l){
+  
+  out <- l[lapply(l, length) > 0]
+  return(out)
+}
+
+
+# Clean and transform the dataset.
+transf_data <- function(data){
+  
+  df <- tibble::tibble(
+    
+    # Global information.
+    Pos = data$Pos,
+    No = data$No,
+    Init = get_capital_name(data$Driver),
+    Driver = get_first_last_name(data$Driver),
+    Team = data$Car,
+    Circuit = data$Circuit,
+    
+    # Time scores.
+    Q1 = str_to_seconds(data$Q1),
+    Q2 = str_to_seconds(data$Q2),
+    Q3 = str_to_seconds(data$Q3),
+    
+    # Driver improvement.
+    Q1_2 = lap_improvement(Q1, Q2),
+    Q2_3 = lap_improvement(Q2, Q3),
+
+    # Delta relative to quickest driver.
+    Q1_d = sec_to_delta(Q1),
+    Q2_d = sec_to_delta(Q2),
+    Q3_d = sec_to_delta(Q3)
+  )
+  
+  return(df)
+}
+
+
+# Clean and merge data.
+df <- rem_empty_elements(data)
+data_total <- lapply(df, transf_data)
+data_total <- do.call(rbind, data_total)
